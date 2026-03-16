@@ -8,7 +8,11 @@
   <style>
     body { font-family: -apple-system, system-ui, sans-serif; background-color: #f8f9fa; margin: 0; padding: 0; color: #333; -webkit-text-size-adjust: none; }
     .header-container { position: sticky; top: 0; background-color: #ffffff; padding: 8px 15px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; border-bottom: 1px solid #eee; }
-    h2 { margin: 0 0 8px 0; font-size: 17px; text-align: center; color: #1c1c1e; }
+    h2 { margin: 0 0 5px 0; font-size: 17px; text-align: center; color: #1c1c1e; }
+    
+    /* 신규 추가: 실시간 시계 스타일 */
+    #realTimeClock { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; letter-spacing: -0.5px; }
+    
     .search-box { display: flex; gap: 6px; }
     .date-wrapper { flex: 1.2; display: flex; align-items: center; border: 1px solid #ddd; border-radius: 6px; background-color: #fdfdfd; padding-right: 8px; }
     input[type="date"] { flex: 1; padding: 8px; font-size: 15px; border: none; background: transparent; outline: none; }
@@ -17,7 +21,6 @@
     button { padding: 8px 12px; font-size: 14px; font-weight: bold; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
     .btn-primary { background-color: #007aff; } 
     .btn-success { background-color: #34c759; } 
-    .btn-secondary { background-color: #8e8e93; width: 100%; } 
     .content-area { padding: 10px; padding-bottom: 40px; }
     .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .card { background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eaeaea; display: flex; flex-direction: column; overflow: hidden; cursor: pointer; }
@@ -47,7 +50,7 @@
     #loading, #no-data { display: none; text-align: center; margin-top: 30px; font-size: 15px; font-weight: bold; }
     #loading { color: #007aff; }
     #no-data { color: #ff3b30; }
-    .action-bar { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .action-bar { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
   </style>
 </head>
 <body>
@@ -62,6 +65,8 @@
 
   <div class="header-container">
     <h2>📋 신촌 당일 스케줄</h2>
+    <div id="realTimeClock"></div>
+    
     <div class="search-box">
       <div class="date-wrapper">
         <input type="date" id="datePicker">
@@ -84,10 +89,10 @@
     </div>
 
     <div class="action-bar">
-      <div id="actionBarContent" style="display: none; width: 100%; max-width: 300px; margin-bottom: 15px;">
-        <button class="btn-secondary" onclick="saveAsImage()">📸 스케줄 이미지로 저장</button>
+      <div id="actionBarContent" style="display: none; text-align: center; width: 100%;">
+        <button style="background-color: #6c757d; color: white; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; display: inline-block;" onclick="saveAsImage()">📸 사진첩 저장</button>
       </div>
-      <button class="btn-secondary" style="background-color: #6c757d; max-width: 300px;" onclick="history.back()">⬅ 이전 화면으로</button>
+      <button style="background-color: #007aff; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 15px; width: 100%; max-width: 300px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="history.back()">⬅ 이전 화면으로</button>
     </div>
   </div>
 
@@ -104,6 +109,44 @@
     const daysArr = ['일', '월', '화', '수', '목', '금', '토'];
     let globalTimeTable = {}; // 자동으로 불러온 시간표 데이터 저장
 
+    // --- 실시간 시계 업데이트 함수 (신규) ---
+    function updateRealTimeClock() {
+      const now = new Date();
+      // 접속한 기기의 시간대와 상관없이 KST(한국 표준시) 시간 구하기
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+      const kstTime = new Date(utc + (9 * 60 * 60 * 1000));
+      
+      const year = kstTime.getFullYear();
+      const month = String(kstTime.getMonth() + 1).padStart(2, '0');
+      const day = String(kstTime.getDate()).padStart(2, '0');
+      const dayOfWeekNum = kstTime.getDay(); // 0: 일, 1: 월, ... 6: 토
+      
+      const hours = String(kstTime.getHours()).padStart(2, '0');
+      const minutes = String(kstTime.getMinutes()).padStart(2, '0');
+      const seconds = String(kstTime.getSeconds()).padStart(2, '0');
+      
+      let dayStr = daysArr[dayOfWeekNum];
+      let dayColor = "#000000"; // 기본 평일 검정색
+      
+      if (dayOfWeekNum === 0) {
+        dayColor = "#ff3b30"; // 일요일 빨간색
+      } else if (dayOfWeekNum === 6) {
+        dayColor = "#007aff"; // 토요일 파란색
+      }
+      // (향후 GAS에서 공휴일 데이터를 받아오면 해당 날짜일 때 dayColor = "#ff3b30" 적용 가능)
+
+      const clockDiv = document.getElementById('realTimeClock');
+      if (clockDiv) {
+        // 요구사항 포맷: 날짜(검정), 요일(조건부 색상), 시간(검정)
+        clockDiv.innerHTML = `<span style="color: #000000;">${year}년 ${month}월 ${day}일(</span><span style="color: ${dayColor};">${dayStr}</span><span style="color: #000000;">) ${hours}:${minutes}분 ${seconds}초</span>`;
+      }
+    }
+    
+    // 시계 1초마다 갱신 실행
+    setInterval(updateRealTimeClock, 1000);
+    updateRealTimeClock(); // 페이지 로드 시 즉시 1회 실행
+    // ------------------------------------
+
     function updateDayOfWeek() {
       if(datePicker.value) {
         const d = new Date(datePicker.value);
@@ -113,12 +156,9 @@
       }
     }
 
-    // [중요 수정] 무조건 대한민국 표준시(KST)를 기준으로 당일 날짜를 셋팅합니다.
     function setTodayDate() {
       const now = new Date();
-      // 접속한 기기의 시간대와 상관없이 UTC 시간 구하기
       const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
-      // UTC 시간에 한국 시간대(+9시간) 더하기
       const kstTime = new Date(utc + (9 * 60 * 60 * 1000));
       
       const year = kstTime.getFullYear();
@@ -138,7 +178,8 @@
       const modalBody = document.getElementById('modalBody');
       modalBody.innerHTML = '';
       
-      const daySchedule = globalTimeTable[post] || ["08시:조회", "09시:일반근무", "10시:순찰", "11시:일반근무", "12시:식사", "13시:일반근무", "14시:순찰", "15시:라운딩", "16시:일반근무", "17시:석회"];
+      const safePost = String(post).trim();
+      const daySchedule = globalTimeTable[safePost] || ["08시:조회", "09시:일반근무", "10시:순찰", "11시:일반근무", "12시:식사", "13시:일반근무", "14시:순찰", "15시:라운딩", "16시:일반근무", "17시:석회"];
       
       daySchedule.forEach(item => {
         const [time, task] = item.split(':');
@@ -164,7 +205,7 @@
         
         if (result.timeTable) {
           result.timeTable.forEach(row => {
-            const postName = row[0];
+            const postName = String(row[0]).trim(); 
             const tasks = [];
             for (let i = 1; i <= 10; i++) {
               const hour = (i + 7).toString().padStart(2, '0') + "시";
@@ -205,7 +246,9 @@
         const card = document.createElement('div');
         card.className = 'card';
         if (item.post === '면회') { card.classList.add('special-visit'); }
-        card.onclick = () => openModal(item.name, item.post);
+        
+        card.onclick = () => openModal(item.name, String(item.post).trim());
+        
         card.innerHTML = `<div class="post-title">${item.post}</div>
                           <div class="worker-name">${item.name}</div>`;
         scheduleGrid.appendChild(card);
