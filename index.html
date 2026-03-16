@@ -10,7 +10,7 @@
     .header-container { position: sticky; top: 0; background-color: #ffffff; padding: 8px 15px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; border-bottom: 1px solid #eee; }
     h2 { margin: 0 0 5px 0; font-size: 17px; text-align: center; color: #1c1c1e; }
     
-    /* 신규 추가: 실시간 시계 스타일 */
+    /* 실시간 시계 스타일 */
     #realTimeClock { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; letter-spacing: -0.5px; }
     
     .search-box { display: flex; gap: 6px; }
@@ -107,45 +107,40 @@
     const modal = document.getElementById('scheduleModal');
 
     const daysArr = ['일', '월', '화', '수', '목', '금', '토'];
-    let globalTimeTable = {}; // 자동으로 불러온 시간표 데이터 저장
+    let globalTimeTable = {}; 
 
-    // --- 실시간 시계 업데이트 함수 (신규) ---
+    // 실시간 시계 업데이트 함수
     function updateRealTimeClock() {
       const now = new Date();
-      // 접속한 기기의 시간대와 상관없이 KST(한국 표준시) 시간 구하기
       const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
       const kstTime = new Date(utc + (9 * 60 * 60 * 1000));
       
       const year = kstTime.getFullYear();
       const month = String(kstTime.getMonth() + 1).padStart(2, '0');
       const day = String(kstTime.getDate()).padStart(2, '0');
-      const dayOfWeekNum = kstTime.getDay(); // 0: 일, 1: 월, ... 6: 토
+      const dayOfWeekNum = kstTime.getDay(); 
       
       const hours = String(kstTime.getHours()).padStart(2, '0');
       const minutes = String(kstTime.getMinutes()).padStart(2, '0');
       const seconds = String(kstTime.getSeconds()).padStart(2, '0');
       
       let dayStr = daysArr[dayOfWeekNum];
-      let dayColor = "#000000"; // 기본 평일 검정색
+      let dayColor = "#000000"; 
       
       if (dayOfWeekNum === 0) {
-        dayColor = "#ff3b30"; // 일요일 빨간색
+        dayColor = "#ff3b30"; 
       } else if (dayOfWeekNum === 6) {
-        dayColor = "#007aff"; // 토요일 파란색
+        dayColor = "#007aff"; 
       }
-      // (향후 GAS에서 공휴일 데이터를 받아오면 해당 날짜일 때 dayColor = "#ff3b30" 적용 가능)
 
       const clockDiv = document.getElementById('realTimeClock');
       if (clockDiv) {
-        // 요구사항 포맷: 날짜(검정), 요일(조건부 색상), 시간(검정)
         clockDiv.innerHTML = `<span style="color: #000000;">${year}년 ${month}월 ${day}일(</span><span style="color: ${dayColor};">${dayStr}</span><span style="color: #000000;">) ${hours}:${minutes}분 ${seconds}초</span>`;
       }
     }
     
-    // 시계 1초마다 갱신 실행
     setInterval(updateRealTimeClock, 1000);
-    updateRealTimeClock(); // 페이지 로드 시 즉시 1회 실행
-    // ------------------------------------
+    updateRealTimeClock(); 
 
     function updateDayOfWeek() {
       if(datePicker.value) {
@@ -273,11 +268,22 @@
       actionBarContent.style.display = 'block'; 
     }
 
+    // 💡 핵심 수정 구역: 캡처 잘림 방지 로직 적용
     function saveAsImage() {
       const captureArea = document.getElementById('captureArea');
       const todayText = datePicker.value;
       alert('이미지를 생성합니다. 잠시만 기다려주세요.');
-      html2canvas(captureArea, { scale: 2, backgroundColor: "#f8f9fa" }).then(canvas => {
+      
+      // 스크롤이 내려가 있을 때 아래쪽이 잘리는 것을 막기 위해 강제로 스크롤 위치를 인식시킵니다.
+      const currentScrollY = window.scrollY || document.documentElement.scrollTop;
+      
+      html2canvas(captureArea, { 
+        scale: 2, 
+        backgroundColor: "#f8f9fa",
+        scrollY: -currentScrollY, // 스크롤 오차 완벽 보정
+        windowHeight: document.documentElement.scrollHeight, // 화면 전체 높이 강제 인식
+        useCORS: true // 외부 데이터 렌더링 누락 방지
+      }).then(canvas => {
         const link = document.createElement('a');
         link.href = canvas.toDataURL("image/png");
         link.download = `신촌_근무스케줄_${todayText}.png`;
